@@ -2,70 +2,45 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live TV Server</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live TV with HLS.js</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     body {
       margin: 0;
       display: flex;
       height: 100vh;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
       background-color: #000;
       color: white;
     }
     .player {
       flex: 3;
-      background: black;
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 10px;
+      background: #111;
     }
     .channel-list {
       flex: 1;
-      background-color: #111;
       overflow-y: auto;
+      background: #1a1a1a;
       padding: 10px;
     }
     .channel {
       display: flex;
       align-items: center;
+      margin-bottom: 15px;
       cursor: pointer;
-      margin-bottom: 12px;
-      border-bottom: 1px solid #333;
-      padding-bottom: 6px;
     }
     .channel img {
       width: 50px;
       height: 50px;
       margin-right: 10px;
-      object-fit: contain;
-    }
-    .server-buttons {
-      margin-top: 5px;
-    }
-    .server-buttons button {
-      margin-right: 5px;
-      padding: 4px 8px;
-      background-color: #333;
-      color: white;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
     }
     video {
       width: 100%;
-      height: 100%;
-      background: black;
-    }
-    @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-      }
-      .player, .channel-list {
-        width: 100%;
-        height: 50vh;
-      }
+      max-height: 100%;
     }
   </style>
 </head>
@@ -75,55 +50,44 @@
   </div>
   <div class="channel-list" id="channelList"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const channels = [
       {
         name: "T Sports",
-        logo: "https://en.wikipedia.org/wiki/T_Sports#/media/File:T_Sports_logo.svg",
-        link_main: "https://bdix.fredflix.fun/live/56/master.m3u8",
-        link_server2: null
+        logo: "https://upload.wikimedia.org/wikipedia/en/thumb/9/9e/T_Sports_logo.png/220px-T_Sports_logo.png",
+        link: "https://bdix.fredflix.fun/live/56/master.m3u8"
       },
       {
         name: "BTV National",
         logo: "https://upload.wikimedia.org/wikipedia/en/thumb/2/27/BTV_World_Logo.png/200px-BTV_World_Logo.png",
-        link_main: "https://bdix.fredflix.fun/live/209/master.m3u8",
-        link_server2: null
-      },
-      {
-        name: "ATN Bangla",
-        logo: "https://upload.wikimedia.org/wikipedia/en/d/d0/ATN_Bangla_logo.svg",
-        link_main: "https://owrcovcrpy.gpcdn.net/bpk-tv/1722/output/1722.m3u8",
-        link_server2: null
-      },
-      {
-        name: "Channel I",
-        logo: "https://en.wikipedia.org/wiki/Channel_i#/media/File:Channel-i.svg",
-        link_main: "https://app24.jagobd.com.bd/c3VydmVyX8RpbEU9Mi8xNy8yMFDDEHGcfRgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcEdsEfeDeKiNkVN3PTOmdFsaWRtaW51aiPhnPTI2/channeli-8-org.stream/tracks-v1a1/mono.ts.m3u8",
-        link_server2: null
-      },
-      {
-        name: "Maasranga TV",
-        logo: "https://upload.wikimedia.org/wikipedia/en/d/d0/ATN_Bangla_logo.svg",
-        link_main: "https://mtv.sunplex.live/MAASRANGA-TV/tracks-v1a1/mono.m3u8",
-        link_server2: null
+        link: "https://bdix.fredflix.fun/live/209/master.m3u8"
       }
+      // আরও চ্যানেল এখানে যোগ করো
     ];
 
-    const video = document.getElementById("videoPlayer");
-    const list = document.getElementById("channelList");
+    const video = document.getElementById('videoPlayer');
+    const list = document.getElementById('channelList');
+    let hls;
 
-    function playStream(link) {
+    function playStream(url) {
+      if (hls) {
+        hls.destroy();
+      }
+
       if (Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(link);
+        hls = new Hls();
+        hls.loadSource(url);
         hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = link;
-        video.play();
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+          video.play();
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.addEventListener('loadedmetadata', function () {
+          video.play();
+        });
       } else {
-        alert("Live stream not supported in your browser.");
+        alert("Your browser doesn't support HLS.");
       }
     }
 
@@ -132,23 +96,14 @@
       div.className = "channel";
       div.innerHTML = `
         <img src="${channel.logo}" alt="${channel.name}" />
-        <div>
-          <div>${channel.name}</div>
-          <div class="server-buttons">
-            <button onclick="playStream('${channel.link_main}')">Server 1</button>
-            ${channel.link_server2 ? `<button onclick="playStream('${channel.link_server2}')">Server 2</button>` : ""}
-          </div>
-        </div>
+        <span>${channel.name}</span>
       `;
+      div.onclick = () => playStream(channel.link);
       list.appendChild(div);
     });
 
-    // Optional: Picture in Picture mode
-    video.addEventListener("loadedmetadata", () => {
-      if ('pictureInPictureEnabled' in document) {
-        video.setAttribute("controls", true);
-      }
-    });
+    // Auto play first channel
+    playStream(channels[0].link);
   </script>
 </body>
 </html>
